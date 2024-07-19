@@ -192,7 +192,7 @@ const postReset = async (req, res, next) => {
                 }
             }
         );
-        await db.collection('users').updateOne({ email }, { $set: userDoc });
+        //await db.collection('users').updateOne({ email }, { $set: userDoc });
         const mailOptions = {
             from: 'adityagoyal000234@gmail.com',
             to: email,

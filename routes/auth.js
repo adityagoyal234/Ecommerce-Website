@@ -26,15 +26,15 @@ router.post('/logout', authController.postLogout);
 router.get('/signup', authController.getSignup);
 
 router.post('/signup',
-    body('email').isEmail().withMessage('Enter a valid email'),
-    body('password').trim().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-    body('confirmPassword').trim()
-        .custom((value, { req }) => {
-            if (value !== req.body.password) {
-                throw new Error('Passwords have to match!');
-            }
-            return true;
-        }), authController.postSignup);
+  body('email').isEmail().withMessage('Enter a valid email'),
+  body('password').trim().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('confirmPassword').trim()
+    .custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error('Passwords have to match!');
+      }
+      return true;
+    }), authController.postSignup);
 
 router.get('/reset', authController.getReset);
 
