@@ -1,18 +1,54 @@
-
 import { Product } from '../models/product.js';
 
 
 const getProducts = async (req, res, next) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const ITEMS_PER_PAGE = 4; // Changed from 6 to 4
+        const searchQuery = req.query.search || '';
+        const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
+        const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
+        const sort = req.query.sort || '';
 
-        const products = await Product.fetchAll();
+        // Debug logs
+        console.log('Raw price inputs:', { minPrice: req.query.minPrice, maxPrice: req.query.maxPrice });
+        console.log('Parsed price values:', { minPrice, maxPrice });
+
+        const products = await Product.fetchAll({
+            page,
+            itemsPerPage: ITEMS_PER_PAGE,
+            searchQuery,
+            minPrice,
+            maxPrice,
+            sort
+        });
+
+        // Debug logs
+        console.log('Sample product prices:', products.products.slice(0, 3).map(p => p.price));
+        console.log('Price filter values:', { minPrice, maxPrice });
+        console.log('Final query:', products.query);
+        console.log('Total products matching query:', products.totalItems);
+
         res.render('shop/product-list', {
-            prods: products,
-            pageTitle: 'All products',
-            path: '/products'
+            prods: products.products,
+            pageTitle: 'All Products',
+            path: '/products',
+            currentPage: page,
+            hasNextPage: ITEMS_PER_PAGE * page < products.totalItems,
+            hasPreviousPage: page > 1,
+            nextPage: page + 1,
+            previousPage: page - 1,
+            lastPage: Math.ceil(products.totalItems / ITEMS_PER_PAGE),
+            searchQuery,
+            minPrice: req.query.minPrice || '',
+            maxPrice: req.query.maxPrice || '',
+            sort
         });
     } catch (err) {
-        console.log(err);
+        console.error('Error in getProducts:', err);
+        const error = new Error(err);
+        error.httpStatusCode = 500;
+        return next(error);
     }
 };
 

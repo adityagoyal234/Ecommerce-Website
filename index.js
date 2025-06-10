@@ -16,6 +16,7 @@ import { User } from './models/user.js'
 import { router } from './routes/auth.js';
 import { get404 } from './controllers/error.js';
 import { mongoConnect } from './util/database.js';
+import { apiRoutes } from './routes/api.js';
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -113,14 +114,20 @@ app.use(async (req, res, next) => {
 
 app.use((req, res, next) => {
     res.locals.isAuthenticated = req.session.loggedIn;
+    res.locals.user = req.session.user;
     res.locals.csrfToken = req.csrfToken();
     next();
 });
 
+// Register API routes before other routes
+app.use('/api', apiRoutes);
+
+// Register other routes
+app.use(router);
+
 mongoConnect(() => {
     app.use('/admin', adminRoutes);
     app.use(shopRoutes);
-    app.use(router);
     app.use(get404);
 
     app.listen(3000, () => {

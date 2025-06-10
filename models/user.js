@@ -5,13 +5,14 @@ import mongoDb from 'mongodb';
 //in monogdb we use the concept of embedded documents and define our cart model 
 //inside the user model only
 class User {
-    constructor(password, email, cart, id, resetToken, resetTokenExpiration) {
+    constructor(password, email, cart, id, resetToken, resetTokenExpiration, role = 'user') {
         this.password = password;
         this.email = email;
         this.cart = cart;
         this._id = id;
         this.resetToken = resetToken;
         this.resetTokenExpiration = resetTokenExpiration;
+        this.role = role; // 'user' or 'admin'
     }
 
     async save() {

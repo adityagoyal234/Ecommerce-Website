@@ -184,15 +184,20 @@ const postEditProduct = async (req, res, next) => {
 
 const getProducts = async (req, res, next) => {
     try {
+        const searchQuery = req.query.search || '';
+        const sortBy = req.query.sort || '';
 
-        const products = await Product.fetchAllAdminProducts(req.user._id);
+        const products = await Product.fetchAllAdminProducts(req.user._id, searchQuery, sortBy);
         res.render('admin/products', {
             prods: products,
             pageTitle: 'All products',
-            path: '/admin/products'
+            path: '/admin/products',
+            searchQuery: searchQuery,
+            sort: sortBy
         });
     } catch (err) {
         console.log(err);
+        next(err);
     }
     /*
     Product.fetchAll(products => {
