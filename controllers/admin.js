@@ -263,4 +263,14 @@ const testAdmin = (req, res, next) => {
     res.send('Admin test route working!');
 };
 
-export { getAddProduct, postAddProduct, getProducts, getEditProduct, postEditProduct, postDeleteProduct, testAdmin };
+const fixStringPrices = async (req, res, next) => {
+    try {
+        await Product.fixStringPrices();
+        res.send('String prices fixed successfully! Check console for details.');
+    } catch (err) {
+        console.error('Error fixing string prices:', err);
+        res.status(500).send('Error fixing string prices');
+    }
+};
+
+export { getAddProduct, postAddProduct, getProducts, getEditProduct, postEditProduct, postDeleteProduct, testAdmin, fixStringPrices };

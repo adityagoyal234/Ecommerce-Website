@@ -5,7 +5,7 @@ import mongoDb from 'mongodb';
 class Product {
     constructor(title, price, description, imageUrl, id, userId, category = 'uncategorized') {
         this.title = title;
-        this.price = price;
+        this.price = typeof price === 'string' ? parseFloat(price) : price;
         this.description = description;
         this.imageUrl = imageUrl;
         this._id = id ? mongoDb.ObjectId.createFromHexString(id) : null;
@@ -73,13 +73,18 @@ class Product {
 
             // Build sort options
             let sortOptions = {};
+            let useAggregation = false;
+            let sortDirection = 1;
+
             if (sort) {
                 switch (sort) {
                     case 'price_asc':
-                        sortOptions = { price: 1 };
+                        sortDirection = 1;
+                        useAggregation = true;
                         break;
                     case 'price_desc':
-                        sortOptions = { price: -1 };
+                        sortDirection = -1;
+                        useAggregation = true;
                         break;
                     case 'name_asc':
                         sortOptions = { title: 1 };
@@ -93,13 +98,29 @@ class Product {
             // Get total count for pagination
             const totalItems = await db.collection('products').countDocuments(query);
 
-            // Fetch products with pagination
-            const products = await db.collection('products')
-                .find(query)
-                .sort(sortOptions)
-                .skip(skip)
-                .limit(itemsPerPage)
-                .toArray();
+            let products;
+
+            if (useAggregation) {
+                // Use aggregation pipeline for price sorting to handle numeric conversion
+                const pipeline = [
+                    { $match: query },
+                    { $addFields: { priceAsNumber: { $toDouble: "$price" } } },
+                    { $sort: { priceAsNumber: sortDirection } },
+                    { $skip: skip },
+                    { $limit: itemsPerPage },
+                    { $project: { priceAsNumber: 0 } } // Remove the temporary field
+                ];
+
+                products = await db.collection('products').aggregate(pipeline).toArray();
+            } else {
+                // Use regular find for non-price sorting
+                products = await db.collection('products')
+                    .find(query)
+                    .sort(sortOptions)
+                    .skip(skip)
+                    .limit(itemsPerPage)
+                    .toArray();
+            }
 
             return {
                 products,
@@ -168,13 +189,18 @@ class Product {
 
             // Build sort options
             let sortOptions = {};
+            let useAggregation = false;
+            let sortDirection = 1;
+
             if (sort) {
                 switch (sort) {
                     case 'price_asc':
-                        sortOptions = { price: 1 };
+                        sortDirection = 1;
+                        useAggregation = true;
                         break;
                     case 'price_desc':
-                        sortOptions = { price: -1 };
+                        sortDirection = -1;
+                        useAggregation = true;
                         break;
                     case 'name_asc':
                         sortOptions = { title: 1 };
@@ -191,13 +217,29 @@ class Product {
             const totalItems = await db.collection('products').countDocuments(query);
             console.log('fetchAllAdminProducts - Total items found:', totalItems);
 
-            // Fetch products with pagination
-            const products = await db.collection('products')
-                .find(query)
-                .sort(sortOptions)
-                .skip(skip)
-                .limit(itemsPerPage)
-                .toArray();
+            let products;
+
+            if (useAggregation) {
+                // Use aggregation pipeline for price sorting to handle numeric conversion
+                const pipeline = [
+                    { $match: query },
+                    { $addFields: { priceAsNumber: { $toDouble: "$price" } } },
+                    { $sort: { priceAsNumber: sortDirection } },
+                    { $skip: skip },
+                    { $limit: itemsPerPage },
+                    { $project: { priceAsNumber: 0 } } // Remove the temporary field
+                ];
+
+                products = await db.collection('products').aggregate(pipeline).toArray();
+            } else {
+                // Use regular find for non-price sorting
+                products = await db.collection('products')
+                    .find(query)
+                    .sort(sortOptions)
+                    .skip(skip)
+                    .limit(itemsPerPage)
+                    .toArray();
+            }
 
             console.log('fetchAllAdminProducts - Products found:', products.length);
             if (products.length > 0) {
@@ -288,6 +330,41 @@ class Product {
         }
     }
 
+    static async fixStringPrices() {
+        try {
+            const db = getDb();
+            console.log('=== FIXING STRING PRICES ===');
+
+            // Find all products with string prices
+            const productsWithStringPrices = await db.collection('products')
+                .find({ price: { $type: "string" } })
+                .toArray();
+
+            console.log(`Found ${productsWithStringPrices.length} products with string prices`);
+
+            if (productsWithStringPrices.length > 0) {
+                for (const product of productsWithStringPrices) {
+                    const numericPrice = parseFloat(product.price);
+                    if (!isNaN(numericPrice)) {
+                        await db.collection('products').updateOne(
+                            { _id: product._id },
+                            { $set: { price: numericPrice } }
+                        );
+                        console.log(`Fixed product "${product.title}": "${product.price}" -> ${numericPrice}`);
+                    } else {
+                        console.log(`Warning: Could not convert price "${product.price}" for product "${product.title}"`);
+                    }
+                }
+                console.log('=== STRING PRICES FIXED ===');
+            } else {
+                console.log('No products with string prices found');
+            }
+        } catch (err) {
+            console.error('Error in fixStringPrices:', err);
+            throw err;
+        }
+    }
+
     static async debugAllProducts() {
         try {
             const db = getDb();
@@ -298,6 +375,8 @@ class Product {
                 console.log(`Product ${index + 1}:`, {
                     _id: product._id,
                     title: product.title,
+                    price: product.price,
+                    priceType: typeof product.price,
                     userId: product.userId,
                     userIdType: typeof product.userId
                 });

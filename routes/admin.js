@@ -27,4 +27,6 @@ adminRoutes.post('/add-product', isAdmin, adminController.postAddProduct);
 
 adminRoutes.post('/delete-product', isAdmin, adminController.postDeleteProduct);
 
+adminRoutes.get('/fix-prices', isAdmin, adminController.fixStringPrices);
+
 export { adminRoutes };
