@@ -6,6 +6,39 @@
         <%- include('../includes/navigation.ejs') %>
 
             <main>
+                <div class="search-container">
+                    <form action="/admin/products" method="GET" class="search-form">
+                        <div class="form-control">
+                            <div class="search-input-wrapper">
+                                <input type="text" name="search" id="search-input" class="search-input"
+                                    placeholder="Search products..." value="<%= searchQuery || '' %>">
+                                <button type="button" id="clear-search" class="clear-search-btn">×</button>
+                                <div id="search-suggestions" class="search-suggestions"></div>
+                            </div>
+                            <button type="submit" class="btn">Search</button>
+                        </div>
+                        <div class="filter-controls">
+                            <div class="price-range">
+                                <label>Price Range:</label>
+                                <input type="number" name="minPrice" placeholder="Min" value="<%= minPrice || '' %>"
+                                    min="0">
+                                <input type="number" name="maxPrice" placeholder="Max" value="<%= maxPrice || '' %>"
+                                    min="0">
+                            </div>
+                            <select name="sort" class="form-control">
+                                <option value="">Sort by</option>
+                                <option value="price_asc" <%=sort==='price_asc' ? 'selected' : '' %>>Price: Low to High
+                                </option>
+                                <option value="price_desc" <%=sort==='price_desc' ? 'selected' : '' %>>Price: High to
+                                    Low</option>
+                                <option value="name_asc" <%=sort==='name_asc' ? 'selected' : '' %>>Name: A to Z</option>
+                                <option value="name_desc" <%=sort==='name_desc' ? 'selected' : '' %>>Name: Z to A
+                                </option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+
                 <% if (prods.length> 0) { %>
                     <div class="grid">
                         <% for (let product of prods) { %>
@@ -33,13 +66,242 @@
                                         <button class="btn" type="submit">Delete</button>
                                         <input type="hidden" value="<%= product._id %>" name="productId">
                                     </form>
-
                                 </div>
                             </article>
                             <% } %>
                     </div>
-                    <% } else { %>
-                        <h1>No Products Found!</h1>
+
+                    <% if (lastPage> 1) { %>
+                        <div class="pagination">
+                            <% if (hasPreviousPage) { %>
+                                <a href="?page=<%= previousPage %>&search=<%= searchQuery %>&sort=<%= sort %>&minPrice=<%= minPrice %>&maxPrice=<%= maxPrice %>"
+                                    class="btn">Previous</a>
+                                <% } %>
+
+                                    <% for(let i=1; i <=lastPage; i++) { %>
+                                        <a href="?page=<%= i %>&search=<%= searchQuery %>&sort=<%= sort %>&minPrice=<%= minPrice %>&maxPrice=<%= maxPrice %>"
+                                            class="btn <%= currentPage === i ? 'active' : '' %>">
+                                            <%= i %>
+                                        </a>
+                                        <% } %>
+
+                                            <% if (hasNextPage) { %>
+                                                <a href="?page=<%= nextPage %>&search=<%= searchQuery %>&sort=<%= sort %>&minPrice=<%= minPrice %>&maxPrice=<%= maxPrice %>"
+                                                    class="btn">Next</a>
+                                                <% } %>
+                        </div>
                         <% } %>
+                            <% } else { %>
+                                <h1>No Products Found!</h1>
+                                <% } %>
             </main>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const searchInput = document.getElementById('search-input');
+                    const suggestionsDiv = document.getElementById('search-suggestions');
+                    const searchForm = searchInput.form;
+                    const clearSearchBtn = document.getElementById('clear-search');
+                    let timeoutId;
+                    let lastSearchValue = searchInput.value.trim();
+
+                    // Show/hide clear button based on search input
+                    function updateClearButton() {
+                        clearSearchBtn.style.display = searchInput.value.trim() ? 'block' : 'none';
+                    }
+
+                    // Initialize clear button state
+                    updateClearButton();
+
+                    // Clear search button functionality
+                    clearSearchBtn.addEventListener('click', function () {
+                        searchInput.value = '';
+                        searchForm.submit();
+                    });
+
+                    searchInput.addEventListener('input', function () {
+                        clearTimeout(timeoutId);
+                        const query = this.value.trim();
+                        const currentSearchValue = query;
+
+                        // Update clear button visibility
+                        updateClearButton();
+
+                        // If search field is cleared, immediately show all products
+                        if (currentSearchValue === '' && lastSearchValue !== '') {
+                            console.log('Search cleared, showing all products');
+                            searchForm.submit();
+                            return;
+                        }
+
+                        // Update last search value
+                        lastSearchValue = currentSearchValue;
+
+                        if (query.length < 2) {
+                            suggestionsDiv.innerHTML = '';
+                            suggestionsDiv.style.display = 'none';
+                            return;
+                        }
+
+                        timeoutId = setTimeout(async () => {
+                            try {
+                                console.log('Fetching suggestions for:', query);
+                                const response = await fetch(`/api/search-suggestions?q=${encodeURIComponent(query)}`);
+                                if (!response.ok) {
+                                    throw new Error(`HTTP error! status: ${response.status}`);
+                                }
+                                const suggestions = await response.json();
+                                console.log('Received suggestions:', suggestions);
+
+                                if (suggestions && suggestions.length > 0) {
+                                    const suggestionsHTML = suggestions
+                                        .map(suggestion => `
+                                            <div class="suggestion" data-title="${suggestion.title}">
+                                                <span class="suggestion-title">${suggestion.title}</span>
+                                                <span class="suggestion-price">$${suggestion.price}</span>
+                                            </div>
+                                        `)
+                                        .join('');
+                                    console.log('Setting suggestions HTML:', suggestionsHTML);
+                                    suggestionsDiv.innerHTML = suggestionsHTML;
+                                    suggestionsDiv.style.display = 'block';
+                                } else {
+                                    suggestionsDiv.innerHTML = '';
+                                    suggestionsDiv.style.display = 'none';
+                                }
+                            } catch (error) {
+                                console.error('Error fetching suggestions:', error);
+                                suggestionsDiv.innerHTML = '';
+                                suggestionsDiv.style.display = 'none';
+                            }
+                        }, 300);
+                    });
+
+                    // Add keydown event for Enter key to submit search
+                    searchInput.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            searchForm.submit();
+                        }
+                    });
+
+                    suggestionsDiv.addEventListener('click', function (e) {
+                        const suggestion = e.target.closest('.suggestion');
+                        if (suggestion) {
+                            searchInput.value = suggestion.dataset.title;
+                            suggestionsDiv.innerHTML = '';
+                            suggestionsDiv.style.display = 'none';
+                            searchForm.submit();
+                        }
+                    });
+
+                    // Close suggestions when clicking outside
+                    document.addEventListener('click', function (e) {
+                        if (!searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                            suggestionsDiv.innerHTML = '';
+                            suggestionsDiv.style.display = 'none';
+                        }
+                    });
+                });
+            </script>
+
+            <style>
+                .search-container {
+                    position: relative;
+                    width: 100%;
+                    max-width: 800px;
+                    margin: 0 auto 2rem;
+                }
+
+                .search-form {
+                    width: 100%;
+                }
+
+                .form-control {
+                    position: relative;
+                    display: flex;
+                    gap: 1rem;
+                    margin-bottom: 1rem;
+                }
+
+                .search-input-wrapper {
+                    position: relative;
+                    flex: 1;
+                }
+
+                .search-input {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    border: 2px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 1rem;
+                }
+
+                .clear-search-btn {
+                    position: absolute;
+                    right: 10px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: none;
+                    border: none;
+                    font-size: 18px;
+                    cursor: pointer;
+                    color: #999;
+                    padding: 0;
+                    width: 20px;
+                    height: 20px;
+                    display: none;
+                    border-radius: 50%;
+                    line-height: 1;
+                }
+
+                .clear-search-btn:hover {
+                    color: #333;
+                    background-color: #f0f0f0;
+                }
+
+                .search-suggestions {
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    margin-top: 4px;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    z-index: 1000;
+                    max-height: 300px;
+                    overflow-y: auto;
+                    display: none;
+                }
+
+                .suggestion {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 0.75rem 1rem;
+                    cursor: pointer;
+                    border-bottom: 1px solid #eee;
+                }
+
+                .suggestion:last-child {
+                    border-bottom: none;
+                }
+
+                .suggestion:hover {
+                    background-color: #f5f5f5;
+                }
+
+                .suggestion-title {
+                    flex: 1;
+                    margin-right: 1rem;
+                }
+
+                .suggestion-price {
+                    color: #666;
+                    font-weight: 500;
+                }
+            </style>
+
             <%- include('../includes/end.ejs') %>

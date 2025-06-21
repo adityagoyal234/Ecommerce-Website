@@ -184,21 +184,25 @@ const postEditProduct = async (req, res, next) => {
 
 const getProducts = async (req, res, next) => {
     try {
-        const searchQuery = req.query.search || '';
-        const sortBy = req.query.sort || '';
         const page = parseInt(req.query.page) || 1;
+        const ITEMS_PER_PAGE = 4;
+        const searchQuery = req.query.search || '';
+        const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
+        const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
+        const sort = req.query.sort || '';
 
         console.log('Admin getProducts - User ID:', req.user._id);
         console.log('Admin getProducts - User ID type:', typeof req.user._id);
-
-        // Debug: Check all products in database
-        await Product.debugAllProducts();
+        console.log('Admin getProducts - Search params:', { searchQuery, minPrice, maxPrice, sort, page });
 
         const result = await Product.fetchAllAdminProducts({
             userId: req.user._id,
+            page: page,
+            itemsPerPage: ITEMS_PER_PAGE,
             searchQuery: searchQuery,
-            sort: sortBy,
-            page: page
+            minPrice: minPrice,
+            maxPrice: maxPrice,
+            sort: sort
         });
 
         console.log('Admin getProducts - Result:', result);
@@ -206,14 +210,18 @@ const getProducts = async (req, res, next) => {
 
         res.render('admin/products', {
             prods: result.products,
-            pageTitle: 'All products',
+            pageTitle: 'Admin Products',
             path: '/admin/products',
+            currentPage: page,
+            hasNextPage: ITEMS_PER_PAGE * page < result.totalItems,
+            hasPreviousPage: page > 1,
+            nextPage: page + 1,
+            previousPage: page - 1,
+            lastPage: Math.ceil(result.totalItems / ITEMS_PER_PAGE),
             searchQuery: searchQuery,
-            sort: sortBy,
-            currentPage: result.currentPage,
-            hasNextPage: result.hasNextPage,
-            hasPreviousPage: result.hasPreviousPage,
-            lastPage: result.lastPage,
+            minPrice: req.query.minPrice || '',
+            maxPrice: req.query.maxPrice || '',
+            sort: sort,
             totalItems: result.totalItems
         });
     } catch (err) {
