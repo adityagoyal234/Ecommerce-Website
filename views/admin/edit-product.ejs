@@ -7,39 +7,46 @@
         <%- include('../includes/navigation.ejs') %>
 
             <main>
-                <form class="product-form"
-                    action="<% if (editing) { %>/admin/edit-product<%} else {%>/admin/add-product<%} %>" method="POST">
-                    <div class="form-control">
-                        <label for="title">Title</label>
-                        <input type="text" name="title" id="title"
-                            value="<% if (editing) { %><%= product.title %><%}%>">
+                <% if (typeof errorMessage !=='undefined' && errorMessage) { %>
+                    <div class="user-message user-message--error">
+                        <%= errorMessage %>
                     </div>
-                    <div class="form-control">
-                        <label for="imageUrl">Image URL</label>
-                        <input type="text" name="imageUrl" id="imageUrl"
-                            value="<% if (editing) { %><%= product.imageUrl %><%}%>">
-                    </div>
-                    <div class="form-control">
-                        <label for="price">Price</label>
-                        <input type="number" name="price" id="price" step="0.01"
-                            value="<% if (editing) { %><%= product.price %><%}%>">
-                    </div>
-                    <div class="form-control">
-                        <label for="description">Description</label>
-                        <textarea name="description" id="description"
-                            rows="5"><% if (editing) { %><%= product.description %><%}%></textarea>
-                    </div>
-                    <% if (editing) { %>
-                        <input type="hidden" name="productId" value="<%= product._id %>">
-                        <%}%>
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <button class="btn" type="submit">
-                                <% if (editing) { %>
-                                    Update Product
-                                    <%} else {%>
-                                        Add Product
-                                        <%} %>
-                            </button>
-                </form>
+                    <% } %>
+
+                        <form class="product-form"
+                            action="<% if (editing) { %>/admin/edit-product<%} else {%>/admin/add-product<%} %>"
+                            method="POST">
+                            <div class="form-control">
+                                <label for="title">Title *</label>
+                                <input type="text" name="title" id="title" required
+                                    value="<% if (editing && product) { %><%= product.title %><%} else if (typeof oldInput !== 'undefined' && oldInput.title) { %><%= oldInput.title %><%}%>">
+                            </div>
+                            <div class="form-control">
+                                <label for="imageUrl">Image URL *</label>
+                                <input type="url" name="imageUrl" id="imageUrl" required
+                                    value="<% if (editing && product) { %><%= product.imageUrl %><%} else if (typeof oldInput !== 'undefined' && oldInput.imageUrl) { %><%= oldInput.imageUrl %><%}%>">
+                            </div>
+                            <div class="form-control">
+                                <label for="price">Price *</label>
+                                <input type="number" name="price" id="price" step="0.01" min="0" required
+                                    value="<% if (editing && product) { %><%= product.price %><%} else if (typeof oldInput !== 'undefined' && oldInput.price) { %><%= oldInput.price %><%}%>">
+                            </div>
+                            <div class="form-control">
+                                <label for="description">Description *</label>
+                                <textarea name="description" id="description" required
+                                    rows="5"><% if (editing && product) { %><%= product.description %><%} else if (typeof oldInput !== 'undefined' && oldInput.description) { %><%= oldInput.description %><%}%></textarea>
+                            </div>
+                            <% if (editing && product) { %>
+                                <input type="hidden" name="productId" value="<%= product._id %>">
+                                <%}%>
+                                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                    <button class="btn" type="submit">
+                                        <% if (editing) { %>
+                                            Update Product
+                                            <%} else {%>
+                                                Add Product
+                                                <%} %>
+                                    </button>
+                        </form>
             </main>
             <%- include('../includes/end.ejs') %>

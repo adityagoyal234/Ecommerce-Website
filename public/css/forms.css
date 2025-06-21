@@ -21,3 +21,32 @@
 .form-control textarea:focus {
     outline-color: #00695c;
 }
+
+.user-message {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.user-message--error {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.user-message--success {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.form-control input:invalid,
+.form-control textarea:invalid {
+    border-color: #c62828;
+}
+
+.form-control input:invalid:focus,
+.form-control textarea:invalid:focus {
+    outline-color: #c62828;
+}

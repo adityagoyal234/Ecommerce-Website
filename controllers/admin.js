@@ -1,5 +1,18 @@
 //import { where } from 'sequelize';
 import { Product } from '../models/product.js';
+import express from 'express';
+import * as adminController from '../controllers/admin.js';
+import { isAdmin } from '../middleware/is-auth.js';
+
+// Helper function to validate URL
+const isValidUrl = (string) => {
+    try {
+        new URL(string);
+        return true;
+    } catch (_) {
+        return false;
+    }
+};
 
 const getAddProduct = (req, res, next) => {
     res.render('admin/edit-product', {
@@ -10,48 +23,69 @@ const getAddProduct = (req, res, next) => {
 }
 
 const postAddProduct = async (req, res, next) => {
-    const title = req.body.title;
-    const price = req.body.price;
-    const description = req.body.description;
-    const imageUrl = req.body.imageUrl;
-    const product = new Product(title, price, description, imageUrl, null, req.user._id);
     try {
+        const title = req.body.title?.trim();
+        const price = req.body.price;
+        const description = req.body.description?.trim();
+        const imageUrl = req.body.imageUrl?.trim();
+
+        // Server-side validation
+        const errors = [];
+
+        if (!title || title.length === 0) {
+            errors.push('Title is required');
+        }
+
+        if (!imageUrl || imageUrl.length === 0) {
+            errors.push('Image URL is required');
+        } else if (!isValidUrl(imageUrl)) {
+            errors.push('Please enter a valid image URL');
+        }
+
+        if (!price || price <= 0) {
+            errors.push('Price is required and must be greater than 0');
+        }
+
+        if (!description || description.length === 0) {
+            errors.push('Description is required');
+        }
+
+        // If there are validation errors, re-render the form with errors
+        if (errors.length > 0) {
+            return res.render('admin/edit-product', {
+                pageTitle: 'Add Product',
+                path: '/admin/add-product',
+                editing: false,
+                errorMessage: errors.join(', '),
+                validationErrors: errors,
+                oldInput: {
+                    title: title || '',
+                    imageUrl: imageUrl || '',
+                    price: price || '',
+                    description: description || ''
+                }
+            });
+        }
+
+        const product = new Product(title, price, description, imageUrl, null, req.user._id);
         const result = await product.save();
-        console.log('why', result);
         console.log('Created Product');
         res.redirect('/admin/products');
     } catch (err) {
         console.log(err);
-    }
-
-    /*
-    const product = new Product(null, title, imageUrl, description, price);
-    product.save()
-        .then(() => {
-            res.redirect('/');
-        })
-        .catch(err => {
-            console.log(err);
+        res.render('admin/edit-product', {
+            pageTitle: 'Add Product',
+            path: '/admin/add-product',
+            editing: false,
+            errorMessage: 'An error occurred while creating the product',
+            oldInput: {
+                title: req.body.title || '',
+                imageUrl: req.body.imageUrl || '',
+                price: req.body.price || '',
+                description: req.body.description || ''
+            }
         });
-        */
-
-    /*
-req.user
-    .createProduct({
-        title: title,
-        imageUrl: imageUrl,
-        description: description,
-        price: price
-    })
-    .then(result => {
-        //console.log(result);
-        console.log("created new product");
-        res.redirect('/admin/products');
-    })
-    .catch(err => {
-        console.log(err);
-    });
-    */
+    }
 };
 
 
@@ -124,10 +158,49 @@ const getEditProduct = async (req, res, next) => {
 const postEditProduct = async (req, res, next) => {
     try {
         const prodId = req.body.productId;
-        const updatedTitle = req.body.title;
-        const updatedImgUrl = req.body.imageUrl;
+        const updatedTitle = req.body.title?.trim();
+        const updatedImgUrl = req.body.imageUrl?.trim();
         const updatedPrice = req.body.price;
-        const updatedDesc = req.body.description;
+        const updatedDesc = req.body.description?.trim();
+
+        // Server-side validation
+        const errors = [];
+
+        if (!updatedTitle || updatedTitle.length === 0) {
+            errors.push('Title is required');
+        }
+
+        if (!updatedImgUrl || updatedImgUrl.length === 0) {
+            errors.push('Image URL is required');
+        } else if (!isValidUrl(updatedImgUrl)) {
+            errors.push('Please enter a valid image URL');
+        }
+
+        if (!updatedPrice || updatedPrice <= 0) {
+            errors.push('Price is required and must be greater than 0');
+        }
+
+        if (!updatedDesc || updatedDesc.length === 0) {
+            errors.push('Description is required');
+        }
+
+        // If there are validation errors, re-render the form with errors
+        if (errors.length > 0) {
+            return res.render('admin/edit-product', {
+                pageTitle: 'Edit Product',
+                path: '/admin/edit-product',
+                editing: true,
+                errorMessage: errors.join(', '),
+                validationErrors: errors,
+                product: {
+                    _id: prodId,
+                    title: updatedTitle || '',
+                    imageUrl: updatedImgUrl || '',
+                    price: updatedPrice || '',
+                    description: updatedDesc || ''
+                }
+            });
+        }
 
         const product = new Product(
             updatedTitle,
@@ -144,42 +217,20 @@ const postEditProduct = async (req, res, next) => {
         res.redirect('/admin/products');
     } catch (err) {
         console.log(err);
+        res.render('admin/edit-product', {
+            pageTitle: 'Edit Product',
+            path: '/admin/edit-product',
+            editing: true,
+            errorMessage: 'An error occurred while updating the product',
+            product: {
+                _id: req.body.productId,
+                title: req.body.title || '',
+                imageUrl: req.body.imageUrl || '',
+                price: req.body.price || '',
+                description: req.body.description || ''
+            }
+        });
     }
-
-
-
-    /*
-    const updatedProduct = new Product(
-        prodId,
-        updatedTitle,
-        updatedImgUrl,
-        updatedDescription,
-        updatedPrice
-    );
-    updatedProduct.save();
-    
-    */
-
-
-    /*
-    Product
-        .findByPk(prodId)
-        .then(product => {
-            product.title = updatedTitle;
-            product.imageUrl = updatedImgUrl;
-            product.description = updatedDescription;
-            product.price = updatedPrice;
-            product.save();
-        })
-        .then(result => { // this one is for product.save
-            console.log("sucess");
-            res.redirect('/admin/products');
-        })
-        .catch(err => {//for findByPk
-            console.log(err);
-        })
-    // res.redirect('/admin/products');
-    */
 };
 
 const getProducts = async (req, res, next) => {
