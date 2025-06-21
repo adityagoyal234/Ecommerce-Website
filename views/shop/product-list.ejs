@@ -12,6 +12,7 @@
                             <div class="search-input-wrapper">
                                 <input type="text" name="search" id="search-input" class="search-input"
                                     placeholder="Search products..." value="<%= searchQuery || '' %>">
+                                <button type="button" id="clear-search" class="clear-search-btn">×</button>
                                 <div id="search-suggestions" class="search-suggestions"></div>
                             </div>
                             <button type="submit" class="btn">Search</button>
@@ -95,11 +96,42 @@
                 document.addEventListener('DOMContentLoaded', function () {
                     const searchInput = document.getElementById('search-input');
                     const suggestionsDiv = document.getElementById('search-suggestions');
+                    const searchForm = searchInput.form;
+                    const clearSearchBtn = document.getElementById('clear-search');
                     let timeoutId;
+                    let lastSearchValue = searchInput.value.trim();
+
+                    // Show/hide clear button based on search input
+                    function updateClearButton() {
+                        clearSearchBtn.style.display = searchInput.value.trim() ? 'block' : 'none';
+                    }
+
+                    // Initialize clear button state
+                    updateClearButton();
+
+                    // Clear search button functionality
+                    clearSearchBtn.addEventListener('click', function () {
+                        searchInput.value = '';
+                        searchForm.submit();
+                    });
 
                     searchInput.addEventListener('input', function () {
                         clearTimeout(timeoutId);
                         const query = this.value.trim();
+                        const currentSearchValue = query;
+
+                        // Update clear button visibility
+                        updateClearButton();
+
+                        // If search field is cleared, immediately show all products
+                        if (currentSearchValue === '' && lastSearchValue !== '') {
+                            console.log('Search cleared, showing all products');
+                            searchForm.submit();
+                            return;
+                        }
+
+                        // Update last search value
+                        lastSearchValue = currentSearchValue;
 
                         if (query.length < 2) {
                             suggestionsDiv.innerHTML = '';
@@ -139,6 +171,14 @@
                                 suggestionsDiv.style.display = 'none';
                             }
                         }, 300);
+                    });
+
+                    // Add keydown event for Enter key to submit search
+                    searchInput.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            searchForm.submit();
+                        }
                     });
 
                     suggestionsDiv.addEventListener('click', function (e) {
@@ -191,6 +231,29 @@
                     border: 2px solid #ddd;
                     border-radius: 4px;
                     font-size: 1rem;
+                }
+
+                .clear-search-btn {
+                    position: absolute;
+                    right: 10px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: none;
+                    border: none;
+                    font-size: 18px;
+                    cursor: pointer;
+                    color: #999;
+                    padding: 0;
+                    width: 20px;
+                    height: 20px;
+                    display: none;
+                    border-radius: 50%;
+                    line-height: 1;
+                }
+
+                .clear-search-btn:hover {
+                    color: #333;
+                    background-color: #f0f0f0;
                 }
 
                 .search-suggestions {
