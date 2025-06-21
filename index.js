@@ -30,6 +30,12 @@ const PORT = process.env.PORT || 3000;
 
 const app = express();
 
+// Debug environment variables
+console.log('Environment:', process.env.NODE_ENV);
+console.log('MongoDB URI exists:', !!MONGODB_URI);
+console.log('Session Secret exists:', !!SESSION_SECRET);
+console.log('Port:', PORT);
+
 const store = new MongoDBStore({
     uri: MONGODB_URI,
     collection: 'sessions'
@@ -66,14 +72,36 @@ app.use(
         saveUninitialized: false,
         store: store,
         cookie: {
-            secure: process.env.NODE_ENV === 'production',
+            secure: process.env.NODE_ENV === 'production' && process.env.NODE_ENV !== 'development',
             httpOnly: true,
-            maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
+            maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+            sameSite: 'lax'
         }
     })
 );
 
+// Add CSRF error handling
+app.use((req, res, next) => {
+    res.locals.isAuthenticated = req.session.loggedIn;
+    res.locals.user = req.session.user;
+    res.locals.csrfToken = req.csrfToken ? req.csrfToken() : '';
+    next();
+});
+
 app.use(csrfProtection);
+
+// CSRF error handling
+app.use((err, req, res, next) => {
+    if (err.code === 'EBADCSRFTOKEN') {
+        console.log('CSRF token error:', err.message);
+        return res.status(403).render('error/403', {
+            pageTitle: 'Access Denied',
+            path: '/403',
+            errorMessage: 'Invalid CSRF token. Please try again.'
+        });
+    }
+    next(err);
+});
 
 /*
 app.use(async (req, res, next) => {
@@ -106,12 +134,16 @@ app.use(async (req, res, next) => {
                 userData.password,
                 userData.email,
                 userData.cart,
-                userData._id.toString() // Ensure _id is a string
+                userData._id.toString(), // Ensure _id is a string
+                userData.resetToken,
+                userData.resetTokenExpiration,
+                userData.role // Add role
             );
         }
 
         if (req.user) {
             console.log("the username is:::: " + req.user.email);
+            console.log("the user role is:::: " + req.user.role);
         }
 
         next();
@@ -119,13 +151,6 @@ app.use(async (req, res, next) => {
         console.error('Error in user middleware:', err);
         next(err);
     }
-});
-
-app.use((req, res, next) => {
-    res.locals.isAuthenticated = req.session.loggedIn;
-    res.locals.user = req.session.user;
-    res.locals.csrfToken = req.csrfToken();
-    next();
 });
 
 // Register API routes before other routes
