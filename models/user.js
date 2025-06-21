@@ -59,25 +59,42 @@ class User {
         try {
             const db = getDb();
             const cart = await this.getCart();
-            typeof this._id === 'string' ? console.log("yes order has  a string " + this._id) : console.log("no order has no string");
+
+            if (!cart || cart.length === 0) {
+                throw new Error('Cart is empty');
+            }
+
             const order = {
-                items: cart,
+                items: cart.map(item => ({
+                    productId: item._id,
+                    title: item.title,
+                    price: item.price,
+                    quantity: item.quantity,
+                    totalPrice: item.price * item.quantity
+                })),
                 user: {
                     _id: mongoDb.ObjectId.createFromHexString(this._id),
                     email: this.email
-                }
-            }
-            await db.collection('orders').insertOne(order);
+                },
+                totalAmount: cart.reduce((total, item) => total + (item.price * item.quantity), 0),
+                orderDate: new Date(),
+                status: 'completed'
+            };
+
+            const result = await db.collection('orders').insertOne(order);
+
+            // Clear the cart after successful order
             this.cart = { items: [] };
             await db.collection('users').updateOne(
                 { _id: mongoDb.ObjectId.createFromHexString(this._id) },
                 { $set: { cart: { items: [] } } }
             );
-            return order;
-        } catch (err) {
-            console.log(err);
-        }
 
+            return { ...order, _id: result.insertedId };
+        } catch (err) {
+            console.log('Error in addOrder:', err);
+            throw err;
+        }
     }
 
     async getOrder() {

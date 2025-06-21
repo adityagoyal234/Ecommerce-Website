@@ -73,14 +73,22 @@ const getProduct = async (req, res, next) => {
 const getIndex = async (req, res, next) => {
     try {
         console.log("the value of req.session.loggedIn at getIndex  is : " + req.session.loggedIn);
-        const products = await Product.fetchAll();
+        const products = await Product.fetchAll({
+            page: 1,
+            itemsPerPage: 4,
+            searchQuery: '',
+            minPrice: null,
+            maxPrice: null,
+            sort: ''
+        });
         res.render('shop/index', {
-            prods: products,
+            prods: products.products,
             pageTitle: 'Shop',
             path: '/'
         });
     } catch (err) {
         console.log(err);
+        next(err);
     }
 };
 
@@ -141,7 +149,7 @@ const getOrders = async (req, res, next) => {
 const postOrder = async (req, res, next) => {
     try {
         const order = await req.user.addOrder();
-        res.redirect('/products');
+        res.redirect('/orders');
         return order;
     } catch (err) {
         console.log(err);

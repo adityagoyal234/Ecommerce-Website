@@ -186,46 +186,40 @@ const getProducts = async (req, res, next) => {
     try {
         const searchQuery = req.query.search || '';
         const sortBy = req.query.sort || '';
+        const page = parseInt(req.query.page) || 1;
 
-        const products = await Product.fetchAllAdminProducts(req.user._id, searchQuery, sortBy);
+        console.log('Admin getProducts - User ID:', req.user._id);
+        console.log('Admin getProducts - User ID type:', typeof req.user._id);
+
+        // Debug: Check all products in database
+        await Product.debugAllProducts();
+
+        const result = await Product.fetchAllAdminProducts({
+            userId: req.user._id,
+            searchQuery: searchQuery,
+            sort: sortBy,
+            page: page
+        });
+
+        console.log('Admin getProducts - Result:', result);
+        console.log('Admin getProducts - Products count:', result.products.length);
+
         res.render('admin/products', {
-            prods: products,
+            prods: result.products,
             pageTitle: 'All products',
             path: '/admin/products',
             searchQuery: searchQuery,
-            sort: sortBy
+            sort: sortBy,
+            currentPage: result.currentPage,
+            hasNextPage: result.hasNextPage,
+            hasPreviousPage: result.hasPreviousPage,
+            lastPage: result.lastPage,
+            totalItems: result.totalItems
         });
     } catch (err) {
-        console.log(err);
+        console.log('Admin getProducts - Error:', err);
         next(err);
     }
-    /*
-    Product.fetchAll(products => {
-        res.render('admin/products', {
-            prods: products,
-            pageTitle: 'Admin Products',
-            path: '/admin/products',
-        });
-    });
-    */
-
-
-    /*
-        Product
-        req.user
-            .getProducts()
-            //  .findAll()
-            .then(products => {
-                res.render('admin/products', {
-                    prods: products,
-                    pageTitle: 'Admin Products',
-                    path: '/admin/products',
-                });
-            })
-            .catch(err => {
-                console.log(err);
-            });
-    */
 };
 
 const postDeleteProduct = async (req, res, next) => {
@@ -261,4 +255,12 @@ const postDeleteProduct = (req, res, next) => {
 export { getAddProduct, postAddProduct, getProducts, getEditProduct, postEditProduct, postDeleteProduct };
 */
 
-export { getAddProduct, postAddProduct, getProducts, getEditProduct, postEditProduct, postDeleteProduct };
+const testAdmin = (req, res, next) => {
+    console.log('=== TEST ADMIN FUNCTION CALLED ===');
+    console.log('Session user:', req.session.user);
+    console.log('User role:', req.session.user?.role);
+    console.log('User ID:', req.session.user?._id);
+    res.send('Admin test route working!');
+};
+
+export { getAddProduct, postAddProduct, getProducts, getEditProduct, postEditProduct, postDeleteProduct, testAdmin };

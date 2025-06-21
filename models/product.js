@@ -18,9 +18,11 @@ class Product {
             let result;
             const db = getDb();
             if (this._id) {
+                console.log('Product.save() - Updating product with _id:', this._id, 'Type:', typeof this._id);
                 result = await db
                     .collection('products')
                     .updateOne({ _id: this._id }, { $set: this });
+                console.log('Product.save() - Update result:', result);
             }
             else {
                 await db.collection('products').insertOne(this);
@@ -114,74 +116,105 @@ class Product {
         }
     }
 
-    static async fetchAllAdminProducts(userId, searchQuery = '', sortBy = '', minPrice = 0, maxPrice = Infinity, category = '', page = 1, limit = 12) {
+    static async fetchAllAdminProducts({ userId, page = 1, itemsPerPage = 4, searchQuery = '', minPrice = null, maxPrice = null, sort = '' }) {
         try {
             const db = getDb();
-            let query = { userId: userId };
+            const skip = (page - 1) * itemsPerPage;
 
-            // Add search functionality
+            // Use userId as string since that's how it's stored in the database
+            console.log('fetchAllAdminProducts - Original userId:', userId);
+            console.log('fetchAllAdminProducts - Using userId as string:', userId);
+
+            // Build the query - use userId as string
+            const query = { userId: userId };
+
+            // Add search condition
             if (searchQuery) {
-                query = {
-                    $and: [
-                        { userId: userId },
-                        {
-                            $or: [
-                                { title: { $regex: searchQuery, $options: 'i' } },
-                                { description: { $regex: searchQuery, $options: 'i' } }
-                            ]
-                        }
-                    ]
-                };
+                query.$and = [
+                    { userId: userId },
+                    {
+                        $or: [
+                            { title: { $regex: searchQuery, $options: 'i' } },
+                            { description: { $regex: searchQuery, $options: 'i' } }
+                        ]
+                    }
+                ];
             }
 
-            // Add price range filter
-            query.price = { $gte: minPrice, $lte: maxPrice };
+            // Add price conditions only if specified
+            if (minPrice !== null || maxPrice !== null) {
+                if (!query.$and) {
+                    query.$and = [{ userId: userId }];
+                }
 
-            // Add category filter
-            if (category && category !== 'all') {
-                query.category = category;
+                const priceCondition = {};
+                if (minPrice !== null) {
+                    priceCondition.$gte = minPrice;
+                }
+                if (maxPrice !== null) {
+                    priceCondition.$lte = maxPrice;
+                }
+
+                query.$and.push({
+                    $expr: {
+                        $and: Object.entries(priceCondition).map(([op, val]) => ({
+                            [op]: [{ $toDouble: "$price" }, val]
+                        }))
+                    }
+                });
             }
 
-            // Add sorting functionality
+            console.log('fetchAllAdminProducts - Final query:', JSON.stringify(query, null, 2));
+
+            // Build sort options
             let sortOptions = {};
-            switch (sortBy) {
-                case 'price_asc':
-                    sortOptions = { price: 1 };
-                    break;
-                case 'price_desc':
-                    sortOptions = { price: -1 };
-                    break;
-                case 'name_asc':
-                    sortOptions = { title: 1 };
-                    break;
-                case 'name_desc':
-                    sortOptions = { title: -1 };
-                    break;
-                default:
-                    sortOptions = { _id: -1 }; // Default sort by newest
+            if (sort) {
+                switch (sort) {
+                    case 'price_asc':
+                        sortOptions = { price: 1 };
+                        break;
+                    case 'price_desc':
+                        sortOptions = { price: -1 };
+                        break;
+                    case 'name_asc':
+                        sortOptions = { title: 1 };
+                        break;
+                    case 'name_desc':
+                        sortOptions = { title: -1 };
+                        break;
+                }
+            } else {
+                sortOptions = { _id: -1 }; // Default sort by newest
             }
-
-            // Calculate pagination
-            const skip = (page - 1) * limit;
 
             // Get total count for pagination
-            const totalProducts = await db.collection('products').countDocuments(query);
+            const totalItems = await db.collection('products').countDocuments(query);
+            console.log('fetchAllAdminProducts - Total items found:', totalItems);
 
+            // Fetch products with pagination
             const products = await db.collection('products')
                 .find(query)
                 .sort(sortOptions)
                 .skip(skip)
-                .limit(limit)
+                .limit(itemsPerPage)
                 .toArray();
+
+            console.log('fetchAllAdminProducts - Products found:', products.length);
+            if (products.length > 0) {
+                console.log('fetchAllAdminProducts - First product userId:', products[0].userId);
+                console.log('fetchAllAdminProducts - First product userId type:', typeof products[0].userId);
+            }
 
             return {
                 products,
-                totalProducts,
+                totalItems,
                 currentPage: page,
-                totalPages: Math.ceil(totalProducts / limit)
+                hasNextPage: skip + itemsPerPage < totalItems,
+                hasPreviousPage: page > 1,
+                lastPage: Math.ceil(totalItems / itemsPerPage)
             };
         } catch (err) {
-            console.log(err);
+            console.error('Error in fetchAllAdminProducts:', err);
             throw err;
         }
     }
@@ -251,6 +284,28 @@ class Product {
             return categories;
         } catch (err) {
             console.log(err);
+            throw err;
+        }
+    }
+
+    static async debugAllProducts() {
+        try {
+            const db = getDb();
+            const allProducts = await db.collection('products').find({}).toArray();
+            console.log('=== DEBUG: All Products ===');
+            console.log('Total products in database:', allProducts.length);
+            allProducts.forEach((product, index) => {
+                console.log(`Product ${index + 1}:`, {
+                    _id: product._id,
+                    title: product.title,
+                    userId: product.userId,
+                    userIdType: typeof product.userId
+                });
+            });
+            console.log('=== END DEBUG ===');
+            return allProducts;
+        } catch (err) {
+            console.error('Error in debugAllProducts:', err);
             throw err;
         }
     }

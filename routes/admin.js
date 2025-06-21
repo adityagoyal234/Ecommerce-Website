@@ -6,6 +6,8 @@ import { isAdmin } from '../middleware/is-auth.js';
 
 const adminRoutes = express.Router();
 
+// Test route
+adminRoutes.get('/test', isAdmin, adminController.testAdmin);
 
 //'/add-product' is an optional addition which relates to path. It uses string matching
 //to execute the function if the url starts with the path name. the url doesnt have to 
