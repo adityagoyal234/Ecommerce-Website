@@ -80,24 +80,47 @@ app.use(
     })
 );
 
-// Add CSRF error handling
+// Apply CSRF protection after session
+app.use(csrfProtection);
+
+// Set up locals after CSRF protection
 app.use((req, res, next) => {
     res.locals.isAuthenticated = req.session.loggedIn;
     res.locals.user = req.session.user;
-    res.locals.csrfToken = req.csrfToken ? req.csrfToken() : '';
+
+    try {
+        res.locals.csrfToken = req.csrfToken();
+        console.log('CSRF token generated successfully for:', req.url);
+    } catch (error) {
+        console.log('Error generating CSRF token for:', req.url, error.message);
+        res.locals.csrfToken = '';
+    }
+
     next();
 });
-
-app.use(csrfProtection);
 
 // CSRF error handling
 app.use((err, req, res, next) => {
     if (err.code === 'EBADCSRFTOKEN') {
         console.log('CSRF token error:', err.message);
+        console.log('Request URL:', req.url);
+        console.log('Request method:', req.method);
+        console.log('Session ID:', req.sessionID);
+        console.log('Session logged in:', req.session.loggedIn);
+
+        // For API routes, return JSON error
+        if (req.path.startsWith('/api/')) {
+            return res.status(403).json({
+                error: 'Invalid CSRF token',
+                message: 'Please refresh the page and try again'
+            });
+        }
+
+        // For regular routes, render error page
         return res.status(403).render('error/403', {
             pageTitle: 'Access Denied',
             path: '/403',
-            errorMessage: 'Invalid CSRF token. Please try again.'
+            errorMessage: 'Invalid CSRF token. Please refresh the page and try again.'
         });
     }
     next(err);
