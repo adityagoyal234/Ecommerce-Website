@@ -25,6 +25,9 @@ const MongoDBStore = connectMongoDBSession(session);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MONGODB_URI = process.env.MONGODB_URI;
+const SESSION_SECRET = process.env.SESSION_SECRET || 'my secret';
+const PORT = process.env.PORT || 3000;
+
 const app = express();
 
 const store = new MongoDBStore({
@@ -58,10 +61,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(
     session({
-        secret: 'my secret',
+        secret: SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
-        store: store
+        store: store,
+        cookie: {
+            secure: process.env.NODE_ENV === 'production',
+            httpOnly: true,
+            maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
+        }
     })
 );
 
@@ -108,7 +116,8 @@ app.use(async (req, res, next) => {
 
         next();
     } catch (err) {
-        throw new Error(err);
+        console.error('Error in user middleware:', err);
+        next(err);
     }
 });
 
@@ -130,9 +139,22 @@ mongoConnect(() => {
     app.use(shopRoutes);
     app.use(get404);
 
-    app.listen(3000, () => {
-        console.log('Server is running on port 3000');
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+    console.error('Unhandled Promise Rejection:', err);
+    process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    process.exit(1);
 });
 
 
