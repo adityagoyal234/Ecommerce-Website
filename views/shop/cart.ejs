@@ -9,12 +9,17 @@
                     <ul class="cart__item-list">
                         <%for(let prodData of products){%>
                             <li class="cart__item">
-                                <h1>
-                                    <%=prodData.title %>
-                                </h1>
-                                <h2>
-                                    Quantity : <%= prodData.quantity %>
-                                </h2>
+                                <div class="cart__item-info">
+                                    <h1>
+                                        <%=prodData.title %>
+                                    </h1>
+                                    <h2>Price: $<%= prodData.price %>
+                                    </h2>
+                                    <h2>Quantity: <%= prodData.quantity %>
+                                    </h2>
+                                    <h2>Total: $<%= (prodData.price * prodData.quantity).toFixed(2) %>
+                                    </h2>
+                                </div>
 
                                 <form action="/cart-delete-item" method="POST">
                                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">

@@ -111,8 +111,10 @@ const getCart = async (req, res, next) => {
 const postCart = async (req, res, next) => {
     try {
         const prodId = req.body.productId;
+        const quantity = parseInt(req.body.quantity) || 1; // Default to 1 if not provided
+
         const product = await Product.findByPk(prodId);
-        const prod = await req.user.addToCart(product);
+        const prod = await req.user.addToCart(product, quantity);
         console.log("product added to the cart is " + prod.matchedCount);
         res.redirect('/cart');
         return prod;

@@ -108,17 +108,17 @@ class User {
 
 
 
-    async addToCart(product) {
+    async addToCart(product, quantity = 1) {
         try {
             const cartProductIndex = this.cart.items.findIndex(cp => {
                 return cp.productId.toString() === product._id.toString();
             });
             console.log("the same product has been found at index no " + cartProductIndex);
-            let newQuantity = 1;
+            let newQuantity = quantity;
             const updatedCartItems = [...this.cart.items];
 
             if (cartProductIndex >= 0) {
-                newQuantity = this.cart.items[cartProductIndex].quantity + 1;
+                newQuantity = this.cart.items[cartProductIndex].quantity + quantity;
                 updatedCartItems[cartProductIndex].quantity = newQuantity;
             } else {
                 updatedCartItems.push({
