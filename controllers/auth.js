@@ -46,6 +46,10 @@ const postLogin = async (req, res, next) => {
         const db = getDb();
         const email = req.body.email;
         const password = req.body.password;
+
+        console.log('Login attempt for email:', email);
+        console.log('Session before login:', req.session);
+
         const user = await db.collection('users').findOne({ email: email });
         if (!user) {
             console.log("incorrect email");
@@ -57,8 +61,15 @@ const postLogin = async (req, res, next) => {
             console.log("correct password");
             req.session.loggedIn = true;
             req.session.user = user;
+
+            console.log('Session after setting loggedIn:', req.session);
+
             return req.session.save(err => {
-                console.log(err);
+                if (err) {
+                    console.log('Session save error:', err);
+                    return res.redirect('/login');
+                }
+                console.log('Session saved successfully');
                 return res.redirect('/');
             })
         }

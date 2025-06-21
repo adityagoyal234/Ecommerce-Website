@@ -38,10 +38,28 @@ console.log('Port:', PORT);
 
 const store = new MongoDBStore({
     uri: MONGODB_URI,
-    collection: 'sessions'
+    collection: 'sessions',
+    expires: 1000 * 60 * 60 * 24 * 7, // 7 days
+    connectionOptions: {
+        useNewUrlParser: true,
+        useUnifiedTopology: true
+    }
 });
 
-const csrfProtection = csurf();
+// Handle session store errors
+store.on('error', function (error) {
+    console.error('Session store error:', error);
+});
+
+// Handle session store connection
+store.on('connected', function () {
+    console.log('MongoDB session store connected');
+});
+
+const csrfProtection = csurf({
+    ignoreMethods: ['GET', 'HEAD', 'OPTIONS'],
+    cookie: false
+});
 app.use(connectFlash());
 
 app.set('view engine', 'ejs');
@@ -68,11 +86,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(
     session({
         secret: SESSION_SECRET,
-        resave: false,
+        resave: true,
         saveUninitialized: false,
         store: store,
+        name: 'sessionId',
         cookie: {
-            secure: process.env.NODE_ENV === 'production' && process.env.NODE_ENV !== 'development',
+            secure: process.env.NODE_ENV === 'production' && process.env.FORCE_HTTPS === 'true',
             httpOnly: true,
             maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
             sameSite: 'lax'
@@ -80,11 +99,23 @@ app.use(
     })
 );
 
+// Debug session middleware
+app.use((req, res, next) => {
+    console.log('Session middleware - Session ID:', req.sessionID);
+    console.log('Session middleware - Session exists:', !!req.session);
+    console.log('Session middleware - loggedIn:', req.session.loggedIn);
+    next();
+});
+
 // Apply CSRF protection after session
 app.use(csrfProtection);
 
 // Set up locals after CSRF protection
 app.use((req, res, next) => {
+    console.log('Setting up locals for:', req.url);
+    console.log('Session loggedIn:', req.session.loggedIn);
+    console.log('Session user:', req.session.user);
+
     res.locals.isAuthenticated = req.session.loggedIn;
     res.locals.user = req.session.user;
 
@@ -120,7 +151,9 @@ app.use((err, req, res, next) => {
         return res.status(403).render('error/403', {
             pageTitle: 'Access Denied',
             path: '/403',
-            errorMessage: 'Invalid CSRF token. Please refresh the page and try again.'
+            errorMessage: 'Invalid CSRF token. Please refresh the page and try again.',
+            isAuthenticated: req.session.loggedIn || false,
+            user: req.session.user || null
         });
     }
     next(err);
@@ -178,6 +211,22 @@ app.use(async (req, res, next) => {
 
 // Register API routes before other routes
 app.use('/api', apiRoutes);
+
+// Debug route for testing session
+app.get('/debug-session', (req, res) => {
+    console.log('Debug session route called');
+    console.log('Session ID:', req.sessionID);
+    console.log('Session:', req.session);
+    console.log('Session loggedIn:', req.session.loggedIn);
+    console.log('Session user:', req.session.user);
+
+    res.json({
+        sessionID: req.sessionID,
+        session: req.session,
+        loggedIn: req.session.loggedIn,
+        user: req.session.user
+    });
+});
 
 // Register other routes
 app.use(router);

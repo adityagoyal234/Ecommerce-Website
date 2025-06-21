@@ -170,12 +170,12 @@ class User {
             const db = getDb();
             console.log("the userId is " + userId);
             const uid = userId.toString();
-            const userCursor = db.collection('users').find({ _id: mongoDb.ObjectId.createFromHexString(uid) });
-            const user = await userCursor.next();
+            const user = await db.collection('users').findOne({ _id: mongoDb.ObjectId.createFromHexString(uid) });
             console.log("the user is " + user);
             return user;
         } catch (err) {
-            console.log(err);
+            console.log('Error in findByPk:', err);
+            return null;
         }
     }
 

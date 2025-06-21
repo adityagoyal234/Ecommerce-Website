@@ -13,7 +13,9 @@ const isAdmin = async (req, res, next) => {
         return res.status(403).render('error/403', {
             pageTitle: 'Access Denied',
             path: '/403',
-            errorMessage: 'You do not have permission to access this page'
+            errorMessage: 'You do not have permission to access this page',
+            isAuthenticated: req.session.loggedIn || false,
+            user: req.session.user || null
         });
     }
     next();
